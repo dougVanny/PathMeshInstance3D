@@ -96,9 +96,8 @@ func generate_mesh() -> Mesh:
 	var uv_line_mesh_height_array = []
 	
 	var point_offsets = []
-	point_offsets.push_back(path_3d.curve.get_closest_offset(path_3d.curve.sample(0, 0.0)))
 	for i in range(path_3d.curve.point_count):
-		point_offsets.push_back(path_3d.curve.get_closest_offset(path_3d.curve.sample(i, 1.0)))
+		point_offsets.push_back(path_3d.curve.get_closest_offset(path_3d.curve.sample(i, 0.0)))
 	
 	var sub_divisions = []
 	var tesselated
@@ -217,7 +216,7 @@ func generate_mesh() -> Mesh:
 			push_warning("Unable to create tube with less than 3 faces")
 			return null
 		
-		for f in range(faces):
+		for f in range(faces+1):
 			
 			var f_delta = (1 - faces % 2) * 0.5
 			var v = Vector3(sin(TAU * (f+f_delta)/faces), cos(TAU * (f+f_delta)/faces), 0.0) * 0.5
@@ -229,13 +228,16 @@ func generate_mesh() -> Mesh:
 			face_groups[0][f] *= 0.5 / maxAxis
 	elif mesh_format & MeshFormat.CROSS:
 		for f in range(faces):
-			var v = Vector3(sin(PI * (f+0.5)/faces), cos(PI * (f+0.5)/faces), 0.0) * 0.5
+			var f_delta = (faces % 2) * 0.5
+			var v = Vector3(sin(PI * (f+f_delta)/faces), cos(PI * (f+f_delta)/faces), 0.0) * 0.5
 			face_groups.push_back([-v, v]);
 			face_around_groups.push_back([
-				float(f)/faces,
-				float(f)/faces
+				(f/2.0)/faces,
+				0.5 + ((f+1)/2.0)/faces
 			])
 			vertice_count_per_sub_division += 2
+	
+	print(face_around_groups)
 	
 	var min_face_vertex_x = INF
 	var min_face_vertex_y = INF
@@ -279,11 +281,7 @@ func generate_mesh() -> Mesh:
 				var face_vertex = group[face_vertex_i]
 				
 				if sub_division_widths[i]!=0 or sub_division_widths[i-1]!=0:
-					if face_vertex_i == len(group)-1:
-						if len(group) > 2:
-							indices.append_array([len(vertices), 1+len(vertices)-vertice_count_per_sub_division*2, len(vertices)-vertice_count_per_sub_division])
-							indices.append_array([len(vertices), 1+len(vertices)-vertice_count_per_sub_division, 1+len(vertices)-vertice_count_per_sub_division*2])
-					else:
+					if face_vertex_i < len(group)-1:
 						indices.append_array([len(vertices), 1+len(vertices)-vertice_count_per_sub_division, len(vertices)-vertice_count_per_sub_division])
 						indices.append_array([len(vertices), 1+len(vertices), 1+len(vertices)-vertice_count_per_sub_division])
 				
@@ -310,6 +308,7 @@ func generate_mesh() -> Mesh:
 				uv_path_length_normalized_array.push_back(sub_divisions[i] / length)
 				uv_path_length_array.push_back(sub_divisions[i])
 				uv_sub_division_array.push_back(i)
+				print(point_offsets)
 				if i == len(sub_divisions)-1:
 					uv_path_point_array.push_back(len(point_offsets)-1)
 				else:
@@ -317,7 +316,7 @@ func generate_mesh() -> Mesh:
 						if point_offset_i == len(point_offsets)-1:
 							uv_path_point_array.push_back(point_offset_i)
 						elif sub_divisions[i] <= point_offsets[point_offset_i+1]:
-							uv_path_point_array.push_back(inverse_lerp(point_offsets[point_offset_i], point_offsets[point_offset_i+1], sub_divisions[i]))
+							uv_path_point_array.push_back(lerp(point_offset_i, point_offset_i+1, inverse_lerp(point_offsets[point_offset_i], point_offsets[point_offset_i+1], sub_divisions[i])))
 							break
 				
 				uv_line_mesh_around_array.push_back(face_around_groups[group_i][face_vertex_i])

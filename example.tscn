@@ -4,7 +4,7 @@
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1v2f1"]
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_mtcpo"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_gghp6"]
 _surfaces = [{
 "aabb": AABB(0, -0.1, -0.1, 3.1, 3.2, 3.1),
 "format": 34359742471,
@@ -13,7 +13,7 @@ _surfaces = [{
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 16,
-"vertex_data": PackedByteArray("enk7QMLQkD3MzMw9AAAAAMzMzL3MzMw9AAAAAMzMzD3MzMw9hoZEQMLQkL3MzMw9AAAAAMzMzL3MzMy9hoZEQMLQkL3MzMy9AAAAAMzMzD3MzMy9enk7QMLQkD3MzMy9mpk5QHp5O0DD0JA9ZmZGQHp5O0DD0JA9ZmZGQIaGREDD0JC9mpk5QIaGREDD0JC9mpk5QJqZOUAAAEBAZmZGQJqZOUAAAEBAZmZGQGZmRkAAAEBAmpk5QGZmRkAAAEBAe1VEldKbSqE6YOxfGbOHjBtNZrP1a2On45WvVXk9mpNkM+cygUy/zJbqyyrQm3mhFCA84AxHNpUBKzfr+zxYk8k/umoXsTu7NsD9VJRVuaqW6jPAW7Hvuk8qM8AZVZqqS2aYTKAju5IowOtfeVW8qrKZZLOARG222D8SoAaOr6o=")
+"vertex_data": PackedByteArray("mpk5QMzMzD3MzMw9AAAAAMzMzL3MzMw9AAAAAMzMzD3MzMw9ZmZGQMzMzL3MzMw9AAAAAMzMzL3MzMy9ZmZGQMzMzL3MzMy9AAAAAMzMzD3MzMy9mpk5QMzMzD3MzMy9mpk5QJqZOUDOzMw9ZmZGQJqZOUDOzMw9ZmZGQGZmRkDOzMy9mpk5QGZmRkDOzMy9mpk5QJqZOUAAAEBAZmZGQJqZOUAAAEBAZmZGQGZmRkAAAEBAmpk5QGZmRkAAAEBAVFVUldKbY6H/X/9fMrPMjMxMMrNObGGnVJVUVTc9eZMyMzIzzEzMzKnqqirSm2Oh/x//3xxHVJWqKqnqNz15k/8/qmo6sRK7/79UVVRVqaqp6v+/OrESu6oq/79UVamqZmbMTJIkSJL/v/9fVFWpqpmZMrPsRCa2/z//nziOqqo=")
 }]
 
 [sub_resource type="Curve3D" id="Curve3D_gh5a4"]
@@ -27,18 +27,13 @@ point_count = 4
 
 [node name="PathMeshInstance3D" type="MeshInstance3D" parent="." node_paths=PackedStringArray("path_3d")]
 material_override = SubResource("StandardMaterial3D_1v2f1")
-mesh = SubResource("ArrayMesh_mtcpo")
+mesh = SubResource("ArrayMesh_gghp6")
 script = ExtResource("1_rk4yi")
 path_3d = NodePath("../Path3D")
 faces = 4
 sub_division_rule = 1
 sub_division_max_stages = 0
 width = 0.2
-uv_path_length_normalized = null
-uv_line_mesh_around = null
-uv_line_mesh_width = null
-uv_line_mesh_height = null
-uv_line_original_width = null
 
 [node name="Path3D" type="Path3D" parent="."]
 curve = SubResource("Curve3D_gh5a4")

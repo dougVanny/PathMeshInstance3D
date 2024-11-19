@@ -208,7 +208,19 @@ func generate_mesh() -> Mesh:
 					indices.append_array([len(vertices), 1+len(vertices)-vertice_count_per_sub_division, len(vertices)-vertice_count_per_sub_division])
 					indices.append_array([len(vertices), 1+len(vertices), 1+len(vertices)-vertice_count_per_sub_division])
 				
-				vertices.push_back(sub_division_transforms[i].translated_local(face_vertex * sub_division_widths[i]).origin)
+				var vertex_position = sub_division_transforms[i].translated_local(face_vertex * sub_division_widths[i]).origin
+				
+				if width_around==WidthAround.EDGES and i < len(sub_divisions)-1:
+					var a = sub_division_transforms[i].origin.direction_to(sub_division_transforms[i-1].origin)
+					var b = sub_division_transforms[i].origin.direction_to(sub_division_transforms[i+1].origin)
+					var scale_multiplier = 1.0/sin(a.angle_to(b)/2)
+					var scale_direction = (a+b).normalized()
+					
+					vertex_position -= sub_division_transforms[i].origin
+					vertex_position = vertex_position.slide(scale_direction) + vertex_position.project(scale_direction)*scale_multiplier
+					vertex_position += sub_division_transforms[i].origin
+				
+				vertices.push_back(vertex_position)
 	
 	if mesh_format == MeshFormat.TUBE:
 		for group in face_groups:

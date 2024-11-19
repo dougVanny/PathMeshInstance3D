@@ -28,10 +28,10 @@ enum UVMapping
 	UV_Y,
 	UV2_X,
 	UV2_Y,
-	UV3_X,
-	UV3_Y,
-	UV4_X,
-	UV4_Y,
+	CUSTOM0_X,
+	CUSTOM0_Y,
+	CUSTOM0_Z,
+	CUSTOM0_W,
 }
 
 @export var path_3d : Path3D
@@ -60,12 +60,12 @@ enum UVMapping
 @export_group("UV Mapping")
 @export var uv_path_length_normalized : UVMapping = UVMapping.UV_Y
 @export var uv_path_length : UVMapping
-@export var uv_sub_division_length : UVMapping
-@export var uv_edge_length : UVMapping
+@export var uv_sub_division : UVMapping
+@export var uv_path_point : UVMapping
 @export var uv_line_mesh_around : UVMapping = UVMapping.UV_X
+@export var uv_line_original_width : UVMapping
 @export var uv_line_mesh_width : UVMapping
 @export var uv_line_mesh_height : UVMapping
-@export var uv_line_original_width : UVMapping
 
 @export_group("Debug")
 @export var _generate_mesh : bool:
@@ -80,10 +80,25 @@ func generate_mesh() -> Mesh:
 		return null
 	
 	var vertices = PackedVector3Array()
-	var uvs = PackedVector2Array()
+	var uv = PackedVector2Array()
+	var uv2 = PackedVector2Array()
 	var custom0 = PackedFloat32Array()
 	var custom1 = PackedFloat32Array()
 	var indices = PackedInt32Array()
+	
+	var uv_path_length_normalized_array = []
+	var uv_path_length_array = []
+	var uv_sub_division_array = []
+	var uv_path_point_array = []
+	var uv_line_mesh_around_array = []
+	var uv_line_original_width_array = []
+	var uv_line_mesh_width_array = []
+	var uv_line_mesh_height_array = []
+	
+	var point_offsets = []
+	point_offsets.push_back(path_3d.curve.get_closest_offset(path_3d.curve.sample(0, 0.0)))
+	for i in range(path_3d.curve.point_count):
+		point_offsets.push_back(path_3d.curve.get_closest_offset(path_3d.curve.sample(i, 1.0)))
 	
 	var sub_divisions = []
 	var tesselated
@@ -189,10 +204,12 @@ func generate_mesh() -> Mesh:
 			last_known_i = i
 	
 	var face_groups = []
+	var face_around_groups = []
 	var vertice_count_per_sub_division = 0
 	
 	if mesh_format & MeshFormat.TUBE:
 		face_groups.push_back([]);
+		face_around_groups.push_back([]);
 		
 		var maxAxis = 0.0
 		
@@ -205,6 +222,7 @@ func generate_mesh() -> Mesh:
 			var f_delta = (1 - faces % 2) * 0.5
 			var v = Vector3(sin(TAU * (f+f_delta)/faces), cos(TAU * (f+f_delta)/faces), 0.0) * 0.5
 			face_groups[0].push_back(v)
+			face_around_groups[0].push_back(float(f)/faces)
 			maxAxis = max(maxAxis, v.x)
 			vertice_count_per_sub_division += 1
 		for f in range(len(face_groups[0])):
@@ -213,13 +231,43 @@ func generate_mesh() -> Mesh:
 		for f in range(faces):
 			var v = Vector3(sin(PI * (f+0.5)/faces), cos(PI * (f+0.5)/faces), 0.0) * 0.5
 			face_groups.push_back([-v, v]);
+			face_around_groups.push_back([
+				float(f)/faces,
+				float(f)/faces
+			])
 			vertice_count_per_sub_division += 2
+	
+	var min_face_vertex_x = INF
+	var min_face_vertex_y = INF
+	var max_face_vertex_x = -INF
+	var max_face_vertex_y = -INF
+	
+	for group in face_groups:
+		for face_vertex in group:
+			min_face_vertex_x = min(min_face_vertex_x, face_vertex.x)
+			min_face_vertex_y = min(min_face_vertex_y, face_vertex.y)
+			max_face_vertex_x = max(max_face_vertex_x, face_vertex.x)
+			max_face_vertex_y = max(max_face_vertex_y, face_vertex.y)
 	
 	for group_i in range(len(face_groups)):
 		var group = face_groups[group_i]
 		for face_vertex_i in range(len(group)):
 			var face_vertex = group[face_vertex_i]
 			vertices.push_back(sub_division_transforms[0].translated_local(face_vertex * sub_division_widths[0]).origin)
+			custom1.push_back(sub_division_transforms[0].origin.x)
+			custom1.push_back(sub_division_transforms[0].origin.y)
+			custom1.push_back(sub_division_transforms[0].origin.z)
+			custom1.push_back(0)
+			
+			uv_path_length_normalized_array.push_back(sub_divisions[0] / length)
+			uv_path_length_array.push_back(sub_divisions[0])
+			uv_sub_division_array.push_back(0)
+			uv_path_point_array.push_back(0)
+			
+			uv_line_mesh_around_array.push_back(face_around_groups[group_i][face_vertex_i])
+			uv_line_original_width_array.push_back(sub_division_widths[0] / width)
+			uv_line_mesh_width_array.push_back(inverse_lerp(min_face_vertex_x, max_face_vertex_x, face_vertex.x))
+			uv_line_mesh_height_array.push_back(inverse_lerp(min_face_vertex_y, max_face_vertex_y, face_vertex.y))
 	
 	for i in range(1, len(sub_divisions)):
 		if sub_division_widths[i]==0 and sub_division_widths[i-1]==0 and sub_division_widths[i+1]==0:
@@ -254,6 +302,28 @@ func generate_mesh() -> Mesh:
 						vertex_position += sub_division_transforms[i].origin
 				
 				vertices.push_back(vertex_position)
+				custom1.push_back(sub_division_transforms[i].origin.x)
+				custom1.push_back(sub_division_transforms[i].origin.y)
+				custom1.push_back(sub_division_transforms[i].origin.z)
+				custom1.push_back(0)
+				
+				uv_path_length_normalized_array.push_back(sub_divisions[i] / length)
+				uv_path_length_array.push_back(sub_divisions[i])
+				uv_sub_division_array.push_back(i)
+				if i == len(sub_divisions)-1:
+					uv_path_point_array.push_back(len(point_offsets)-1)
+				else:
+					for point_offset_i in range(len(point_offsets)):
+						if point_offset_i == len(point_offsets)-1:
+							uv_path_point_array.push_back(point_offset_i)
+						elif sub_divisions[i] <= point_offsets[point_offset_i+1]:
+							uv_path_point_array.push_back(inverse_lerp(point_offsets[point_offset_i], point_offsets[point_offset_i+1], sub_divisions[i]))
+							break
+				
+				uv_line_mesh_around_array.push_back(face_around_groups[group_i][face_vertex_i])
+				uv_line_original_width_array.push_back(sub_division_widths[i] / width)
+				uv_line_mesh_width_array.push_back(inverse_lerp(min_face_vertex_x, max_face_vertex_x, face_vertex.x))
+				uv_line_mesh_height_array.push_back(inverse_lerp(min_face_vertex_y, max_face_vertex_y, face_vertex.y))
 	
 	if mesh_format == MeshFormat.TUBE:
 		for group in face_groups:
@@ -265,14 +335,47 @@ func generate_mesh() -> Mesh:
 			cap.reverse()
 			indices.append_array(cap)
 	
+	var uv_map = {}
+	uv_map[uv_path_length_normalized] = uv_path_length_normalized_array
+	uv_map[uv_path_length] = uv_path_length_array
+	uv_map[uv_sub_division] = uv_sub_division_array
+	uv_map[uv_path_point] = uv_path_point_array
+	uv_map[uv_line_mesh_around] = uv_line_mesh_around_array
+	uv_map[uv_line_original_width] = uv_line_original_width_array
+	uv_map[uv_line_mesh_width] = uv_line_mesh_width_array
+	uv_map[uv_line_mesh_height] = uv_line_mesh_height_array
+	
+	for i in range(len(vertices)):
+		uv.push_back(Vector2(
+			uv_map[UVMapping.UV_X][i] if UVMapping.UV_X in uv_map else 0.0,
+			uv_map[UVMapping.UV_Y][i] if UVMapping.UV_Y in uv_map else 0.0
+		))
+		uv2.push_back(Vector2(
+			uv_map[UVMapping.UV2_X][i] if UVMapping.UV2_X in uv_map else 0.0,
+			uv_map[UVMapping.UV2_Y][i] if UVMapping.UV2_Y in uv_map else 0.0
+		))
+		custom0.append_array([
+			uv_map[UVMapping.CUSTOM0_X][i] if UVMapping.CUSTOM0_X in uv_map else 0.0,
+			uv_map[UVMapping.CUSTOM0_Y][i] if UVMapping.CUSTOM0_Y in uv_map else 0.0,
+			uv_map[UVMapping.CUSTOM0_Z][i] if UVMapping.CUSTOM0_Z in uv_map else 0.0,
+			uv_map[UVMapping.CUSTOM0_W][i] if UVMapping.CUSTOM0_W in uv_map else 0.0
+		])
+	
 	var array_mesh = ArrayMesh.new()
 	
 	var arrays = []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_INDEX] = indices
+	arrays[Mesh.ARRAY_TEX_UV] = uv
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2
+	arrays[Mesh.ARRAY_CUSTOM0] = custom0
+	arrays[Mesh.ARRAY_CUSTOM1] = custom1
 	
 	var surface_tool = SurfaceTool.new()
 	surface_tool.create_from_arrays(arrays)
 	surface_tool.generate_normals()
-	return surface_tool.commit()
+	arrays = surface_tool.commit_to_arrays()
+	
+	array_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ArrayCustomFormat.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ArrayFormat.ARRAY_FORMAT_CUSTOM0_SHIFT | Mesh.ArrayCustomFormat.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ArrayFormat.ARRAY_FORMAT_CUSTOM1_SHIFT)
+	return array_mesh

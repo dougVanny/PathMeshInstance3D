@@ -50,6 +50,7 @@ enum UVMapping
 @export var width_multiplier_tile_length : float
 @export var width_multiplier_tile_length_stretch_to_fit : bool = true
 @export var width_around : WidthAround
+@export_range(0, 10, 0.001, "or_greater") var width_orientation_lerp_distance : float
 
 @export_group("Ends")
 @export_range(0, 100, 0.001, "or_greater") var end_length : float
@@ -150,16 +151,42 @@ func generate_mesh() -> Mesh:
 	var sub_division_transforms = []
 	for i in range(len(sub_divisions)):
 		var offset = sub_divisions[i]
-		var offset_reference_transform = path_3d.curve.sample_baked_with_rotation(offset, true, true)
+		var offset_reference_transform = path_3d.curve.sample_baked_with_rotation(offset, false, true)
 		
 		if i==0:
-			sub_division_transforms.push_back(offset_reference_transform.looking_at(path_3d.curve.sample_baked(sub_divisions[i+1], true), offset_reference_transform.basis.y))
+			sub_division_transforms.push_back(offset_reference_transform.looking_at(path_3d.curve.sample_baked(sub_divisions[i+1]), offset_reference_transform.basis.y))
 		elif i==len(sub_divisions)-1:
-			sub_division_transforms.push_back(offset_reference_transform.looking_at(path_3d.curve.sample_baked(sub_divisions[i-1], true), offset_reference_transform.basis.y, true))
+			sub_division_transforms.push_back(offset_reference_transform.looking_at(path_3d.curve.sample_baked(sub_divisions[i-1]), offset_reference_transform.basis.y, true))
 		else:
-			var direction_to_next = offset_reference_transform.origin.direction_to(path_3d.curve.sample_baked(sub_divisions[i+1], true))
-			var direction_from_prev = path_3d.curve.sample_baked(sub_divisions[i-1], true).direction_to(offset_reference_transform.origin)
-			sub_division_transforms.push_back(offset_reference_transform.looking_at(offset_reference_transform.origin + direction_to_next + direction_from_prev, offset_reference_transform.basis.y))
+			var direction_to_next = offset_reference_transform.origin.direction_to(path_3d.curve.sample_baked(sub_divisions[i+1]))
+			var direction_from_prev = path_3d.curve.sample_baked(sub_divisions[i-1]).direction_to(offset_reference_transform.origin)
+			
+			if width_orientation_lerp_distance > 0 and is_zero_approx(direction_from_prev.angle_to(direction_to_next)):
+				sub_division_transforms.push_back(null)
+			else:
+				sub_division_transforms.push_back(offset_reference_transform.looking_at(offset_reference_transform.origin + direction_to_next + direction_from_prev, offset_reference_transform.basis.y))
+	
+	var last_known_transform = null
+	var last_known_i = -1
+	for i in range(len(sub_division_transforms)):
+		if sub_division_transforms[i] != null:
+			if last_known_transform != null and last_known_i+1 != i:
+				var last_offset = sub_divisions[last_known_i]
+				var lerp_distance = min(width_orientation_lerp_distance, (sub_divisions[i] - last_offset)/2.0)
+				for j in range(last_known_i+1, i):
+					var reference_transform = path_3d.curve.sample_baked_with_rotation(sub_divisions[j], false, true)
+					reference_transform = reference_transform.looking_at(path_3d.curve.sample_baked(sub_divisions[j+1]), reference_transform.basis.y)
+					
+					var sub_division_basis = reference_transform.basis
+					
+					if inverse_lerp(last_offset, sub_divisions[i], sub_divisions[j]) < 0.5:
+						sub_division_basis = sub_division_transforms[last_known_i].basis.slerp(sub_division_basis, clamp(inverse_lerp(last_offset, last_offset+lerp_distance, sub_divisions[j]), 0.0, 1.0))
+					else:
+						sub_division_basis = sub_division_transforms[i].basis.slerp(sub_division_basis, clamp(inverse_lerp(sub_divisions[i], sub_divisions[i]-lerp_distance, sub_divisions[j]), 0.0, 1.0))
+					
+					sub_division_transforms[j] = Transform3D(sub_division_basis,path_3d.curve.sample_baked(sub_divisions[j]))
+			last_known_transform = sub_division_transforms[i]
+			last_known_i = i
 	
 	var face_groups = []
 	var vertice_count_per_sub_division = 0
@@ -195,30 +222,36 @@ func generate_mesh() -> Mesh:
 			vertices.push_back(sub_division_transforms[0].translated_local(face_vertex * sub_division_widths[0]).origin)
 	
 	for i in range(1, len(sub_divisions)):
+		if sub_division_widths[i]==0 and sub_division_widths[i-1]==0 and sub_division_widths[i+1]==0:
+			continue
+		
 		for group_i in range(len(face_groups)):
 			var group = face_groups[group_i]
 			for face_vertex_i in range(len(group)):
 				var face_vertex = group[face_vertex_i]
 				
-				if face_vertex_i == len(group)-1:
-					if len(group) > 2:
-						indices.append_array([len(vertices), 1+len(vertices)-vertice_count_per_sub_division*2, len(vertices)-vertice_count_per_sub_division])
-						indices.append_array([len(vertices), 1+len(vertices)-vertice_count_per_sub_division, 1+len(vertices)-vertice_count_per_sub_division*2])
-				else:
-					indices.append_array([len(vertices), 1+len(vertices)-vertice_count_per_sub_division, len(vertices)-vertice_count_per_sub_division])
-					indices.append_array([len(vertices), 1+len(vertices), 1+len(vertices)-vertice_count_per_sub_division])
+				if sub_division_widths[i]!=0 or sub_division_widths[i-1]!=0:
+					if face_vertex_i == len(group)-1:
+						if len(group) > 2:
+							indices.append_array([len(vertices), 1+len(vertices)-vertice_count_per_sub_division*2, len(vertices)-vertice_count_per_sub_division])
+							indices.append_array([len(vertices), 1+len(vertices)-vertice_count_per_sub_division, 1+len(vertices)-vertice_count_per_sub_division*2])
+					else:
+						indices.append_array([len(vertices), 1+len(vertices)-vertice_count_per_sub_division, len(vertices)-vertice_count_per_sub_division])
+						indices.append_array([len(vertices), 1+len(vertices), 1+len(vertices)-vertice_count_per_sub_division])
 				
 				var vertex_position = sub_division_transforms[i].translated_local(face_vertex * sub_division_widths[i]).origin
 				
-				if width_around==WidthAround.EDGES and i < len(sub_divisions)-1:
+				if width_around==WidthAround.EDGES and sub_division_widths[i] > 0 and i < len(sub_divisions)-1:
 					var a = sub_division_transforms[i].origin.direction_to(sub_division_transforms[i-1].origin)
 					var b = sub_division_transforms[i].origin.direction_to(sub_division_transforms[i+1].origin)
 					var scale_multiplier = 1.0/sin(a.angle_to(b)/2)
-					var scale_direction = (a+b).normalized()
 					
-					vertex_position -= sub_division_transforms[i].origin
-					vertex_position = vertex_position.slide(scale_direction) + vertex_position.project(scale_direction)*scale_multiplier
-					vertex_position += sub_division_transforms[i].origin
+					if not is_equal_approx(scale_multiplier,1):
+						var scale_direction = (a+b).normalized()
+						
+						vertex_position -= sub_division_transforms[i].origin
+						vertex_position = vertex_position.slide(scale_direction) + vertex_position.project(scale_direction)*scale_multiplier
+						vertex_position += sub_division_transforms[i].origin
 				
 				vertices.push_back(vertex_position)
 	

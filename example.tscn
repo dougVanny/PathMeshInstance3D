@@ -4,7 +4,7 @@
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1v2f1"]
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_gghp6"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_6gyf6"]
 _surfaces = [{
 "aabb": AABB(0, -0.1, -0.1, 3.1, 3.2, 3.1),
 "format": 34359742471,
@@ -27,7 +27,7 @@ point_count = 4
 
 [node name="PathMeshInstance3D" type="MeshInstance3D" parent="." node_paths=PackedStringArray("path_3d")]
 material_override = SubResource("StandardMaterial3D_1v2f1")
-mesh = SubResource("ArrayMesh_gghp6")
+mesh = SubResource("ArrayMesh_6gyf6")
 script = ExtResource("1_rk4yi")
 path_3d = NodePath("../Path3D")
 faces = 4

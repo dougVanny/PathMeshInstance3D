@@ -1,0 +1,47 @@
+[gd_scene load_steps=5 format=4 uid="uid://dai1dsqliea1x"]
+
+[ext_resource type="Script" path="res://addons/path_mesh_instance_3d/path_mesh_instance_3d.gd" id="1_rk4yi"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1v2f1"]
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_mtcpo"]
+_surfaces = [{
+"aabb": AABB(0, -0.1, -0.1, 3.1, 3.2, 3.1),
+"format": 34359742471,
+"index_count": 84,
+"index_data": PackedByteArray("AAABAAIAAAADAAEAAwAEAAEAAwAFAAQABQAGAAQABQAHAAYABwACAAYABwAAAAIACAADAAAACAAJAAMACQAFAAMACQAKAAUACgAHAAUACgALAAcACwAAAAcACwAIAAAADAAJAAgADAANAAkADQAKAAkADQAOAAoADgALAAoADgAPAAsADwAIAAsADwAMAAgADAAPAA4ADgANAAwAAgABAAQABAAGAAIA"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 16,
+"vertex_data": PackedByteArray("enk7QMLQkD3MzMw9AAAAAMzMzL3MzMw9AAAAAMzMzD3MzMw9hoZEQMLQkL3MzMw9AAAAAMzMzL3MzMy9hoZEQMLQkL3MzMy9AAAAAMzMzD3MzMy9enk7QMLQkD3MzMy9mpk5QHp5O0DD0JA9ZmZGQHp5O0DD0JA9ZmZGQIaGREDD0JC9mpk5QIaGREDD0JC9mpk5QJqZOUAAAEBAZmZGQJqZOUAAAEBAZmZGQGZmRkAAAEBAmpk5QGZmRkAAAEBAe1VEldKbSqE6YOxfGbOHjBtNZrP1a2On45WvVXk9mpNkM+cygUy/zJbqyyrQm3mhFCA84AxHNpUBKzfr+zxYk8k/umoXsTu7NsD9VJRVuaqW6jPAW7Hvuk8qM8AZVZqqS2aYTKAju5IowOtfeVW8qrKZZLOARG222D8SoAaOr6o=")
+}]
+
+[sub_resource type="Curve3D" id="Curve3D_gh5a4"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3),
+"tilts": PackedFloat32Array(0, 0, 0, 0)
+}
+point_count = 4
+
+[node name="Node3D" type="Node3D"]
+
+[node name="PathMeshInstance3D" type="MeshInstance3D" parent="." node_paths=PackedStringArray("path_3d")]
+material_override = SubResource("StandardMaterial3D_1v2f1")
+mesh = SubResource("ArrayMesh_mtcpo")
+script = ExtResource("1_rk4yi")
+path_3d = NodePath("../Path3D")
+faces = 4
+sub_division_rule = 1
+sub_division_max_stages = 0
+width = 0.2
+uv_path_length_normalized = null
+uv_line_mesh_around = null
+uv_line_mesh_width = null
+uv_line_mesh_height = null
+uv_line_original_width = null
+
+[node name="Path3D" type="Path3D" parent="."]
+curve = SubResource("Curve3D_gh5a4")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.895277, 0.44551, 0, -0.44551, 0.895277, 0, 1.33636, 2.83585)

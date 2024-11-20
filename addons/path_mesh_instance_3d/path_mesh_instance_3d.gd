@@ -1,80 +1,159 @@
 @tool
 class_name PathMeshInstance3D
 extends MeshInstance3D
+## Node that creates a mesh based on a [Path3D]
 
+## Different formats a mesh can take on when generated
 enum MeshFormat
 {
+	## Tube-like mesh along the set path. End of the tube will be closed of so their inside is not exposed
 	TUBE = 0b001,
+	## Tube-like mesh along the set path. End of the tube will be open so their insides may be exposed
 	TUBE_UNCAPPED = 0b011,
+	## Cross-like mesh. Can be used to save on triangles or to create a planar mesh
 	CROSS = 0b100,
 }
 
+## Method to be used when tesselating the path to create it's sub divisions
 enum SubDivisionRule
 {
+	## Path will be tesselated using [method Curve3D.tessellate], making more curved parts of the curve will
+	## have a greater sub division density and will therefore follow a curved path more accurately
 	CURVE_DENSITY,
+	## Path will be tesselated using [method Curve3D.tessellate_even_length], ignoring any curves the path makes
+	## and prioritizing having an even length between each sub division. Useful for vertex shader animations
 	UNIFORM
 }
 
+## Which part of the path should be used when calculating the width of the generated mesh
 enum WidthAround
 {
+	## Width will remaing constant along the whole edge connecting two sub divisions.
+	## Width on division points will be slightly wides to compensate for the curvature of the path
 	EDGES,
-	VERTICES
+	## Width will be constant around each division of the path. The width on edges connecting divisions
+	## may look thinner where the path makes too sharp turns
+	DIVISIONS
 }
 
+## Possible mapping properties to be later used in a mesh material
 enum UVMapping
 {
+	## Information will be discarded
 	NONE,
+	## Accessible via [code]UV.x[/code] in
+	## [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#fragment-built-ins]fragment shaders[/url]
+	## and [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#vertex-built-ins]vertex shaders[/url]
 	UV_X,
+	## Accessible via [code]UV.y[/code] in
+	## [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#fragment-built-ins]fragment shaders[/url]
+	## and [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#vertex-built-ins]vertex shaders[/url]
 	UV_Y,
+	## Accessible via [code]UV2.x[/code] in
+	## [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#fragment-built-ins]fragment shaders[/url]
+	## and [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#vertex-built-ins]vertex shaders[/url]
 	UV2_X,
+	## Accessible via [code]UV2.y[/code] in
+	## [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#fragment-built-ins]fragment shaders[/url]
+	## and [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#vertex-built-ins]vertex shaders[/url]
 	UV2_Y,
+	## Accessible via [code]CUSTOM0.x[/code] in
+	## [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#vertex-built-ins]vertex shaders[/url]
 	CUSTOM0_X,
+	## Accessible via [code]CUSTOM0.y[/code] in
+	## [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#vertex-built-ins]vertex shaders[/url]
 	CUSTOM0_Y,
+	## Accessible via [code]CUSTOM0.z[/code] in
+	## [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#vertex-built-ins]vertex shaders[/url]
 	CUSTOM0_Z,
+	## Accessible via [code]CUSTOM0.w[/code] in
+	## [url=https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/spatial_shader.html#vertex-built-ins]vertex shaders[/url]
 	CUSTOM0_W,
 }
 
+## Path the generated mesh will follow
 @export var path_3d : Path3D
 
+## Format the mesh will take on
 @export var mesh_format : MeshFormat = MeshFormat.TUBE
+## How many faces the mesh will have around its length. Depends on [member PathMeshInstance3D.mesh_format]
 @export_range(1, 64, 1, "or_greater") var faces : int = 6
 
 @export_group("Sub Division Tesselation")
+## Method to be used when tesselating the path to create it's sub divisions
 @export var sub_division_rule : SubDivisionRule
+## Controls how many sub divisions will be created along each segment of the path between two points.
+## Increases exponentially. See also [method Curve3D.tessellate] and [method Curve3D.tessellate_even_length]
 @export_range(0, 16) var sub_division_max_stages : int = 5
+## Max length between each sub division. After tesselation, if any segment is greater than this value,
+## it will be further broken down
 @export_range(0, 100, 0.001, "or_greater") var sub_division_max_length : float = 0;
 
 @export_group("Width")
+## Width around the path of the generated mesh. Mesh is generated around the path, so a value of [code]1[/code]
+## will generate vertices between [code]-0.5[/code] and [code]0.5[/code]
 @export var width : float = 1.0
+## Curve that dictates the width of the mesh along the path. This heavily relies on the position of the mesh subdivisions,
+## meaning that the less subdivions the mesh has, the less accurate it will follow this curve
 @export var width_multiplier : Curve
-@export var width_multiplier_tile_length : float
-@export var width_multiplier_tile_length_stretch_to_fit : bool = true
+## Dictates if the width multiplier curve should be tiled along the length of the path[br]
+## - A value of [code]0[/code] will make the curve stretch along the whole path[br]
+## - Any other value will make the curve repeat for each configured length units
+@export_range(0, 10, 0.001, "or_greater") var width_multiplier_tile_length : float
+## Controls if the width multiplier curve should shrink to fit the whole length of the curve. 
+## Setting this to true will make the path always end at the end of the curve.
+## Setting this to false will make the path end at any point of the curve.[br][br]
+## Not used if [member PathMeshInstance3D.width_multiplier_tile_length] is [code]0[/code]
+@export var width_multiplier_tile_length_shrink_to_fit : bool = true
+## Which part of the path should be used when calculating the width of the generated mesh
 @export var width_around : WidthAround
+## Controls the orientation of the width ring around the mesh.
+## Rings around a straight subsection willbe parallel to the path by default.
+## Set this to make such rings lerp towards non-straight sub divisions of the path.
+## Use this to avoid broken meshes when you have sub divisions close to a sharp turn
 @export_range(0, 10, 0.001, "or_greater") var width_orientation_lerp_distance : float
 
 @export_group("Ends")
+## The length of the path's end to be considered. Used by [member PathMeshInstance3D.end_sub_divisions]
+## and [member PathMeshInstance3D.end_width_multiplier]
 @export_range(0, 100, 0.001, "or_greater") var end_length : float
+## How many extra subdivisions should be added at the ends of the path
 @export var end_sub_divisions : int = 8
+## Overrides the width at both ends of the path. Settings this will make [member PathMeshInstance3D.width_multiplier]
+## only use the length of the path between those ends
 @export var end_width_multiplier : Curve
 
 @export_group("UV Mapping")
+## Path length normalized, ranging from [code]0[/code] to [code]1[/code]
 @export var uv_path_length_normalized : UVMapping = UVMapping.UV_Y
+## Path length not normalized, ranging from [code]0[/code] to whatever length the path has
 @export var uv_path_length : UVMapping
+## Index of each sub division created for the mesh
 @export var uv_sub_division : UVMapping
+## Index of each point from the original path
 @export var uv_path_point : UVMapping
+## Value that wraps around the mesh, specially around tube meshes, ranging from [code]0[/code] to [code]1[/code]
 @export var uv_line_mesh_around : UVMapping = UVMapping.UV_X
+## Original width of that path position within the mesh. This ignores the value stored in [member PathMeshInstance3D.width]
+## and reads only whatever multiplier was applied by the width curves
 @export var uv_line_original_width : UVMapping
+## Considering the orientation of the path at each sub division, this is the width along the right axis
+## of the path. Use set the [code]tilt[/code] of each [Curve3D] point to control the path orientation
 @export var uv_line_mesh_width : UVMapping
+## Considering the orientation of the path at each sub division, this is the height along the up axis
+## of the path. Use set the [code]tilt[/code] of each [Curve3D] point to control the path orientation
 @export var uv_line_mesh_height : UVMapping
 
-@export_group("Debug")
-@export var _generate_mesh : bool:
-	get:
-		return false
-	set(value):
-		mesh = generate_mesh()
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "mesh":
+		property.usage |= PROPERTY_USAGE_READ_ONLY
 
-func generate_mesh() -> Mesh:
+## Generates a new mesh and assigns it to the MeshInstance3D
+func generate_and_assign():
+	mesh = generate_mesh()
+
+## Generates a new mesh and returns it without assigning it to the MeshInstance3D
+func generate_mesh() -> ArrayMesh:
 	if(path_3d.curve.point_count < 2):
 		push_warning("Path needs at least 2 points")
 		return null
@@ -155,7 +234,7 @@ func generate_mesh() -> Mesh:
 			var weight_curve_t = inverse_lerp(end_length_width, length - end_length_width, offset)
 			if width_multiplier_tile_length > 0:
 				var mult = (length - end_length_width*2.0) / width_multiplier_tile_length
-				if width_multiplier_tile_length_stretch_to_fit:
+				if width_multiplier_tile_length_shrink_to_fit:
 					mult = ceilf(mult)
 				weight_curve_t *= mult
 			if(weight_curve_t > 1.0):
@@ -237,8 +316,6 @@ func generate_mesh() -> Mesh:
 			])
 			vertice_count_per_sub_division += 2
 	
-	print(face_around_groups)
-	
 	var min_face_vertex_x = INF
 	var min_face_vertex_y = INF
 	var max_face_vertex_x = -INF
@@ -308,7 +385,7 @@ func generate_mesh() -> Mesh:
 				uv_path_length_normalized_array.push_back(sub_divisions[i] / length)
 				uv_path_length_array.push_back(sub_divisions[i])
 				uv_sub_division_array.push_back(i)
-				print(point_offsets)
+				
 				if i == len(sub_divisions)-1:
 					uv_path_point_array.push_back(len(point_offsets)-1)
 				else:

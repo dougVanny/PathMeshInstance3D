@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="LineMeshInstance3D"
+config/name="PathMeshInstance3D"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 config/icon="res://icon.svg"
 

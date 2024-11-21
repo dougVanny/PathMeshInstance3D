@@ -213,7 +213,7 @@ Not used if PathMeshInstance3D.width_multiplier_tile_length is 0
 Controls the orientation of the width ring around the mesh. Rings around a straight subsection willbe parallel to the path by default. Set this to make such rings lerp towards non-straight sub divisions of the path. Use this to avoid broken meshes when you have sub divisions close to a sharp turn
 
 
-Method Descriptions
+## Method Descriptions
 
 
 ● **void** generate_and_assign()
